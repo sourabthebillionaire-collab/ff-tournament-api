@@ -77,6 +77,16 @@ app.post('/api/matches/:id/complete', async (req, res) => {
     if (!match) return res.status(404).json({ error: 'Match not found' });
     match.isCompleted = true;
     match.winnerIgn = winnerIgn;
+    
+    if (winnerIgn) {
+      const winner = await User.findOne({ ign: winnerIgn });
+      if (winner) {
+        winner.walletBalance += (match.booyah || 0);
+        winner.totalEarned += (match.booyah || 0);
+        await winner.save();
+      }
+    }
+    
     await match.save();
     res.json(match);
   } catch (error) {
@@ -144,6 +154,18 @@ app.get('/api/users/:id/joined-matches', async (req, res) => {
   }
 });
 
+// LEADERBOARD
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const topUsers = await User.find({ totalEarned: { $gt: 0 } })
+      .sort({ totalEarned: -1 })
+      .limit(10);
+    res.json(topUsers);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // USERS (Admin)
 app.get('/api/users', async (req, res) => {
   try {
@@ -185,7 +207,10 @@ app.put('/api/users/:id/profile', async (req, res) => {
 app.post('/api/transactions', async (req, res) => {
   try {
     const { userId, type, amount, utr, upiId, screenshotUrl } = req.body;
-    const transaction = new Transaction({ userId, type, amount, utr, upiId, screenshotUrl, status: 'PENDING' });
+    if (Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Amount must be greater than 0' });
+    }
+    const transaction = new Transaction({ userId, type, amount: Number(amount), utr, upiId, screenshotUrl, status: 'PENDING' });
     await transaction.save();
     res.json(transaction);
   } catch (error) {
