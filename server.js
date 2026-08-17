@@ -61,10 +61,20 @@ app.get('/api/matches', async (req, res) => {
 
 app.post('/api/matches', async (req, res) => {
   try {
-    const { title, entryFee, perKill, booyah, map, mode, time, roomId, roomPassword } = req.body;
-    const match = new Match({ title, entryFee, perKill, booyah, map, mode, time, roomId, roomPassword });
+    const { title, entryFee, perKill, booyah, map, mode, time, roomId, roomPassword, spotsTotal } = req.body;
+    const match = new Match({ title, entryFee, perKill, booyah, map, mode, time, roomId, roomPassword, spotsTotal: spotsTotal || 48 });
     await match.save();
     res.json(match);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/matches/:id', async (req, res) => {
+  try {
+    const match = await Match.findByIdAndDelete(req.params.id);
+    if (!match) return res.status(404).json({ error: 'Match not found' });
+    res.json({ success: true, message: 'Match deleted' });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
